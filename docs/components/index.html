@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f8f6f2" />
+    <meta name="description" content="Component documentation for Foto Owl's headless React and React Native media components." />
+    <title>Foto Owl Components — Documentation</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="#top"><span class="brand-mark">◉</span><span>FOTO OWL <small>COMPONENT DOCS</small></span></a>
+      <nav aria-label="Documentation sites"><a href="../sdk/">SDK ↗</a><a aria-current="page" href="./">Components</a></nav>
+    </header>
+
+    <div class="layout" id="top">
+      <aside class="sidebar">
+        <p class="side-label">IN THIS GUIDE</p>
+        <a href="#overview">Overview</a><a href="#contract">Render props</a><a href="#grid">MediaGrid</a>
+        <a href="#lightbox">MediaLightbox</a><a href="#reel">MediaReelSwiper</a><a href="#native">Native components</a>
+        <a href="#accessibility">Accessibility</a><a href="#deploy">Deploy</a>
+        <div class="side-note">Bring your own markup<br />and CSS</div>
+      </aside>
+
+      <main>
+        <section class="hero" id="overview">
+          <span class="eyebrow">HEADLESS COMPONENTS · V0.1.0</span>
+          <h1>Behavior first.<br /><em>Your design system.</em></h1>
+          <p>MediaGrid, MediaLightbox, and MediaReelSwiper expose interaction and accessibility behavior. You render the actual elements, choose their source fields, and own every visual style.</p>
+          <div class="hero-tags"><span>@foto-owl/media-ui-react</span><span>@foto-owl/media-ui-native</span><span>no stylesheet included</span></div>
+        </section>
+
+        <section class="doc-section" id="contract">
+          <div class="section-kicker">01 · COMPONENT CONTRACT</div><h2>Render props and prop-getters</h2>
+          <p>Each component requires a function as <code>children</code>. The function receives state, data, callbacks, and prop-getters. Spread each getter result onto the matching consumer-owned element so behavior, refs, and accessibility attributes are retained. Getter props can be customized with an object argument; custom event handlers are composed with the component behavior.</p>
+          <pre><code>&lt;MediaGrid items={items}&gt;
+  {(grid) =&gt; (
+    &lt;div {...grid.getRootProps({ className: 'gallery' })}&gt;
+      {/* Consumer renders the content and CSS hooks. */}
+    &lt;/div&gt;
+  )}
+&lt;/MediaGrid&gt;</code></pre>
+          <div class="callout"><strong>Data boundary</strong><p>These packages do not fetch, import the SDK or wrappers, or contain Pexels logic. Normalize provider-specific URLs in your app before rendering.</p></div>
+        </section>
+
+        <section class="doc-section" id="grid">
+          <div class="section-kicker">02 · RESULTS</div><h2>MediaGrid</h2>
+          <p>Props: <code>items</code>, <code>loading</code>, <code>hasMore</code>, <code>onLoadMore</code>, <code>onItemClick</code>, and optional <code>label</code>. Its render API provides <code>items</code>, state/callbacks, and <code>getRootProps</code>, <code>getRowProps</code>, <code>getItemProps</code>, and <code>getLoadMoreProps</code>. It accepts photos and videos without filtering them.</p>
+          <p>This example follows the real consumer structure in <code>apps/web/src/components/MediaGallery.jsx</code>:</p>
+          <pre><code>import { MediaGrid } from '@foto-owl/media-ui-react';
+
+function Gallery({ items, loading, hasMore, loadMore, selectItem }) {
+  return (
+    &lt;MediaGrid items={items} loading={loading} hasMore={hasMore}
+      onLoadMore={loadMore} onItemClick={selectItem}&gt;
+      {(grid) =&gt; (
+        &lt;div {...grid.getRootProps({ className: 'media-grid' })}&gt;
+          {grid.items.map((item, index) =&gt; (
+            &lt;button key={`${item.id}-${index}`}
+              {...grid.getItemProps({ item, index, className: 'media-card' })}&gt;
+              {item.alt || item.title || `Media ${index + 1}`}
+            &lt;/button&gt;
+          ))}
+        &lt;/div&gt;
+      )}
+    &lt;/MediaGrid&gt;
+  );
+}</code></pre>
+          <p>The React grid getter supplies keyboard activation for Enter and Space. Load-more activation is disabled while loading or when there are no more items; connect <code>onLoadMore</code> to app pagination or an app-owned scroll observer. The component itself does not implement infinite scrolling.</p>
+        </section>
+
+        <section class="doc-section" id="lightbox">
+          <div class="section-kicker">03 · SELECTED MEDIA</div><h2>MediaLightbox</h2>
+          <p>The React component is controlled by <code>item</code>, optional <code>open</code> (defaults to item presence), and <code>onClose</code>. Its render API gives <code>item</code>, <code>open</code>, <code>mediaType</code>, <code>isVideo</code>, <code>close</code>, and getters for dialog, close button, image, and video elements.</p>
+          <p>Real app composition: <code>App.jsx</code> passes selected state to the component; <code>MediaLightboxView.jsx</code> renders the dialog and media:</p>
+          <pre><code>&lt;MediaLightbox item={selected} open={Boolean(selected)}
+  onClose={() =&gt; setSelected(null)}&gt;
+  {(api) =&gt; (
+    &lt;div {...api.getDialogProps({ className: 'lightbox-dialog' })}&gt;
+      &lt;button {...api.getCloseButtonProps({ className: 'lightbox-close' })}&gt;
+        Close
+      &lt;/button&gt;
+      {api.isVideo
+        ? &lt;video {...api.getVideoProps({ src: mediaSrc(api.item) })} /&gt;
+        : &lt;img {...api.getImageProps({ src: mediaSrc(api.item) })} /&gt;}
+    &lt;/div&gt;
+  )}
+&lt;/MediaLightbox&gt;</code></pre>
+          <p>The actual app calls its provider-aware source helper from <code>apps/web/src/utils/media.js</code>. This matters for Pexels photos, whose <code>src</code> value is an object of size URLs: the component's generic helper only recognizes conventional string <code>src</code> or <code>url</code>. Keep that adaptation in the app.</p>
+          <div class="feature-grid"><div><strong>Escape</strong><span>Closes the open viewer</span></div><div><strong>Focus</strong><span>Tab stays in the dialog</span></div><div><strong>Restore</strong><span>Focus returns after close</span></div><div><strong>Semantics</strong><span>Dialog role and modal label</span></div></div>
+        </section>
+
+        <section class="doc-section" id="reel">
+          <div class="section-kicker">04 · VERTICAL MEDIA</div><h2>MediaReelSwiper</h2>
+          <p>Accepts <code>items</code>, optional controlled <code>activeIndex</code>, <code>onActiveChange(index, item)</code>, and optional <code>label</code>. Render props include <code>items</code>, <code>activeIndex</code>, <code>activeItem</code>, <code>getScrollerProps</code>, and <code>getSlideProps</code>. Scroll position detects the nearest slide; the app owns snap CSS.</p>
+          <p>This mirrors the actual <code>apps/web/src/components/ReelsView.jsx</code> scroller/slide composition:</p>
+          <pre><code>&lt;MediaReelSwiper items={videoItems} activeIndex={active}
+  onActiveChange={(index, item) =&gt; { setActive(index); onView(item); }}&gt;
+  {(reel) =&gt; (
+    &lt;div {...reel.getScrollerProps({ className: 'reel-scroller' })}&gt;
+      {reel.items.map((item, index) =&gt; (
+        &lt;section key={item.id}
+          {...reel.getSlideProps({ item, index, className: 'reel-slide' })}&gt;
+          &lt;video src={mediaSrc(item)} controls={false} playsInline /&gt;
+        &lt;/section&gt;
+      ))}
+    &lt;/div&gt;
+  )}
+&lt;/MediaReelSwiper&gt;</code></pre>
+          <p>The app stylesheet defines vertical overflow and <code>scroll-snap-type</code> on the scroller plus <code>scroll-snap-align</code> on slides. The package does not include CSS.</p>
+        </section>
+
+        <section class="doc-section" id="native">
+          <div class="section-kicker">05 · NATIVE RENDERING CONTRACT</div><h2><code>@foto-owl/media-ui-native</code></h2>
+          <p>The native package exports the same three component names, but its prop-getters target React Native primitives and use native interaction/accessibility fields. It does not depend on React Native build infrastructure or choose a video player.</p>
+          <div class="api-grid">
+            <article><h3>MediaGrid</h3><p>Render getters on <code>View</code> and <code>Pressable</code>. Item activation is <code>onPress</code>; load-more props expose disabled/busy state.</p></article>
+            <article><h3>MediaLightbox</h3><p>Render the modal getter on <code>Modal</code>. It provides visibility and request-close behavior; supply a native video player yourself.</p></article>
+            <article><h3>MediaReelSwiper</h3><p>Render the scroller getter on a scroll view. It supplies <code>horizontal: false</code>, <code>pagingEnabled</code>, scroll handlers, and <code>scrollToIndex(index, animated)</code>.</p></article>
+          </div>
+          <pre><code>import { ScrollView, View } from 'react-native';
+import { MediaReelSwiper } from '@foto-owl/media-ui-native';
+
+&lt;MediaReelSwiper items={items} onActiveChange={setActiveIndex}&gt;
+  {({ items, getScrollerProps, getSlideProps }) =&gt; (
+    &lt;ScrollView {...getScrollerProps()}&gt;
+      {items.map((item, index) =&gt; (
+        &lt;View key={item.id} {...getSlideProps({ item, index })} /&gt;
+      ))}
+    &lt;/ScrollView&gt;
+  )}
+&lt;/MediaReelSwiper&gt;</code></pre>
+          <p>This native example follows the component contract documented in <code>packages/media-ui-native/README.md</code>. The repository has no full native application; consumers must provide native primitives, styling, and playback.</p>
+        </section>
+
+        <section class="doc-section" id="accessibility">
+          <div class="section-kicker">06 · ACCESSIBILITY & STYLING</div><h2>Semantics stay in the markup</h2>
+          <ul class="checklist">
+            <li>Spread getter props on the actual grid, item, dialog, control, scroller, or slide element.</li>
+            <li>Use buttons or pressables for actions; provide useful labels and image alternative text.</li>
+            <li>Keep getter refs, event handlers, roles, ARIA attributes, and accessibility state when adding custom props.</li>
+            <li>Render loading and empty states in the app and expose busy/disabled states through the grid props.</li>
+            <li>Implement layout, colors, animations, overlays, image sizing, and scroll snapping in consumer CSS/layout.</li>
+            <li>Choose the media URL field and any platform-specific video player in the consuming app.</li>
+          </ul>
+          <div class="callout"><strong>No baked-in visual design</strong><p>Both component packages provide behavior and prop-getters. They ship no CSS or design system.</p></div>
+          <p>All packages are JavaScript. <code>media-core</code> uses JSDoc for public API/data documentation, although the assessment requested pure TypeScript; this is a known implementation deviation.</p>
+        </section>
+
+        <section class="doc-section" id="deploy">
+          <div class="section-kicker">07 · PUBLISH AS STATIC SITES</div><h2>Deploy independently on Vercel</h2>
+          <p>Each documentation site is plain static HTML and CSS with no build-time framework or dependency installation. Create separate Vercel projects from the repository, set the project Root Directory to <code>docs/components</code>, choose the <strong>Other</strong> preset, leave the build command empty, and use <code>.</code> as the output directory. Repeat with <code>docs/sdk</code> for the SDK site. This matches Vercel's guidance for static HTML/CSS sites with no build step; see <a href="https://vercel.com/docs/builds/configure-a-build" target="_blank" rel="noreferrer">Vercel build configuration</a>.</p>
+          <p>There are no deployment URLs configured in this repository. A project can also be served locally with any static file server, or opened directly as <code>index.html</code>.</p>
+        </section>
+
+        <footer class="footer"><span>Foto Owl · Component documentation</span><a href="../sdk/">Continue to SDK docs →</a></footer>
+      </main>
+    </div>
+  </body>
+</html>

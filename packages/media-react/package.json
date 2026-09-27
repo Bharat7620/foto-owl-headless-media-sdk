@@ -1,0 +1,20 @@
+{
+  "name": "@foto-owl/media-react",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.js",
+  "exports": { ".": "./src/index.js" },
+  "dependencies": { "@foto-owl/media-core": "0.1.0" },
+  "peerDependencies": { "react": "^18.0.0 || ^19.0.0" },
+  "scripts": {
+    "test": "node --test",
+    "build": "node --check src/index.js && node --check src/MediaProvider.js && node --check src/media-context.js && node --check src/hooks/useMediaClient.js && node --check src/hooks/useAsyncRequest.js && node --check src/hooks/useMediaSearch.js && node --check src/hooks/useMediaCurated.js && node --check src/hooks/useMediaItem.js && node --check src/hooks/useMediaEvent.js"
+  },
+  "devDependencies": {
+    "@testing-library/react": "^16.3.0",
+    "jsdom": "^26.1.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  }
+}

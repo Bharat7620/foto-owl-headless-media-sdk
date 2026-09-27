@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f4f7f6" />
+    <meta name="description" content="SDK documentation for the Foto Owl media-core, media-react, and media-native packages." />
+    <title>Foto Owl SDK — Documentation</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="#top"><span class="brand-mark">◎</span><span>FOTO OWL <small>SDK DOCS</small></span></a>
+      <nav aria-label="Documentation sites"><a aria-current="page" href="./">SDK</a><a href="../components/">Components ↗</a></nav>
+    </header>
+
+    <div class="layout" id="top">
+      <aside class="sidebar">
+        <p class="side-label">IN THIS GUIDE</p>
+        <a href="#overview">Overview</a><a href="#architecture">Architecture</a><a href="#install">Installation</a>
+        <a href="#client">Client setup</a><a href="#search">Search & pagination</a><a href="#react">React adapter</a>
+        <a href="#native">Native adapter</a><a href="#events">Events</a><a href="#errors">Errors</a><a href="#development">Development</a>
+        <div class="side-note">JavaScript packages<br />with JSDoc in core</div>
+      </aside>
+
+      <main>
+        <section class="hero" id="overview">
+          <span class="eyebrow">SDK REFERENCE · V0.1.0</span>
+          <h1>Media data,<br /><em>without the glue code.</em></h1>
+          <p>Three packages share one boundary: a framework-agnostic Pexels client, a React adapter, and a React Native-facing adapter.</p>
+          <div class="hero-tags"><span>@foto-owl/media-core</span><span>@foto-owl/media-react</span><span>@foto-owl/media-native</span></div>
+        </section>
+
+        <section class="doc-section" id="architecture">
+          <div class="section-kicker">01 · BOUNDARIES</div><h2>Architecture</h2>
+          <div class="architecture"><div>Web or Native App</div><b>→</b><div>Platform Wrapper</div><b>→</b><div class="core-box">media-core</div></div>
+          <p>The app creates the configured client and provides it to a wrapper. Wrappers coordinate framework state and delegate data operations to core. Core does not import React, React Native, DOM APIs, or UI packages.</p>
+          <div class="callout"><strong>Implementation note</strong><p>The assessment requested pure TypeScript for <code>media-core</code>. The repository implementation is JavaScript with JSDoc. No package in this SDK site claims to be implemented in TypeScript.</p></div>
+        </section>
+
+        <section class="doc-section" id="install">
+          <div class="section-kicker">02 · INSTALL</div><h2>Install in this workspace</h2>
+          <p>These packages are currently private npm workspaces, not published registry packages. From the repository root, install the workspace dependencies:</p>
+          <pre><code>npm install</code></pre>
+          <p>Import from each package's public root. The root exports point to each package's <code>src/index.js</code>.</p>
+        </section>
+
+        <section class="doc-section" id="client">
+          <div class="section-kicker">03 · CORE CLIENT</div><h2>Create a client</h2>
+          <p>Supply the Pexels API key when creating a client. Optional <code>cacheTtlMs</code> defaults to 30 seconds; use <code>0</code> to disable the in-memory GET cache. <code>fetchImpl</code> can be injected for tests or custom runtimes.</p>
+          <pre><code>import { createMediaClient } from '@foto-owl/media-core';
+
+const client = createMediaClient({
+  apiKey: appConfig.pexelsApiKey,
+  cacheTtlMs: 30_000,
+});</code></pre>
+          <p>The client sends the credential using the Pexels <code>Authorization</code> header. Do not hardcode or commit a real key. In the Vite web app, the checked-in entrypoint reads <code>import.meta.env.VITE_PEXELS_API_KEY</code>; Vite exposes prefixed variables to browser code.</p>
+          <h3>Core public exports</h3>
+          <div class="chip-row"><code>MediaClient</code><code>createMediaClient</code><code>MediaSdkError</code><code>MediaEventEmitter</code><code>createMediaEventEmitter</code></div>
+        </section>
+
+        <section class="doc-section" id="search">
+          <div class="section-kicker">04 · REQUESTS</div><h2>Search photos and videos</h2>
+          <p>Photos are the default. Use <code>type: 'videos'</code> for videos. Each response has <code>items</code>, <code>page</code>, <code>perPage</code>, <code>totalResults</code>, <code>hasNextPage</code>, <code>nextPageUrl</code>, and <code>previousPageUrl</code>. Items retain Pexels fields and add <code>kind</code> (<code>image</code> or <code>video</code>) and <code>mediaType</code> (<code>photo</code> or <code>video</code>).</p>
+          <pre><code>const photos = await client.search('mountain lake', {
+  page: 1,
+  perPage: 24,
+});
+
+const videos = await client.search('mountain lake', {
+  type: 'videos',
+  page: 1,
+  perPage: 24,
+});</code></pre>
+          <h3>Pagination</h3>
+          <p>Pages are one-based. The default is page 1 with 15 items; <code>perPage</code> accepts 1–80. Advance while <code>hasNextPage</code> is true.</p>
+          <pre><code>if (photos.hasNextPage) {
+  const nextPhotos = await client.search('mountain lake', {
+    page: photos.page + 1,
+    perPage: photos.perPage,
+  });
+}</code></pre>
+          <p>Other supported scalar options, such as <code>orientation</code>, are passed as query parameters. Curated photos use <code>client.getCurated(options)</code>; with <code>{ type: 'videos' }</code> it returns popular videos. <code>client.getById(id, { type })</code> retrieves one item.</p>
+          <pre><code>const curatedPhotos = await client.getCurated({ perPage: 12 });
+const popularVideos = await client.getCurated({ type: 'videos', perPage: 8 });
+const photo = await client.getById(2014422);
+const video = await client.getById(2499611, { type: 'videos' });</code></pre>
+          <h3>Cache and duplicate requests</h3>
+          <p>Successful GET responses are cached in memory per client for 30 seconds by default. Set <code>cacheTtlMs: 0</code> to turn caching off, or call <code>client.clearCache()</code>. Concurrent requests with the same endpoint and parameters reuse an in-flight promise; errors are not cached.</p>
+        </section>
+
+        <section class="doc-section" id="react">
+          <div class="section-kicker">05 · REACT</div><h2><code>@foto-owl/media-react</code></h2>
+          <p>This package exports <code>MediaProvider</code>, <code>useMediaClient</code>, <code>useMediaSearch</code>, <code>useMediaCurated</code>, <code>useMediaItem</code>, <code>useMediaEvent</code>, <code>useMediaViewEvent</code>, and <code>useMediaDownloadEvent</code>. It supplies context and request-state lifecycle; it does not create clients or duplicate Pexels logic.</p>
+          <pre><code>import { MediaProvider } from '@foto-owl/media-react';
+
+&lt;MediaProvider client={client}&gt;
+  &lt;App /&gt;
+&lt;/MediaProvider&gt;</code></pre>
+          <p><code>useMediaSearch({ query, page, perPage, type })</code> returns <code>results</code>, <code>pagination</code>, <code>loading</code>, <code>error</code>, <code>search</code>, and <code>refetch</code>. Empty queries do not request data. The hook forwards filters such as <code>type: 'videos'</code> to core.</p>
+          <pre><code>const { results, pagination, loading, error, refetch } = useMediaSearch({
+  query,
+  page: 1,
+  perPage: 24,
+  type: 'videos',
+});
+
+if (error) return &lt;button onClick={() =&gt; refetch()}&gt;Retry&lt;/button&gt;;
+if (loading) return &lt;p role="status"&gt;Loading…&lt;/p&gt;;
+if (results.length === 0) return &lt;p&gt;No videos found.&lt;/p&gt;;</code></pre>
+          <p><code>useMediaCurated({ page, perPage, type })</code> loads curated photos by default or popular videos when type is videos. <code>useMediaItem(id, options)</code> returns <code>data</code>, <code>loading</code>, <code>error</code>, and <code>refetch</code>.</p>
+        </section>
+
+        <section class="doc-section" id="native">
+          <div class="section-kicker">06 · REACT NATIVE-FACING ADAPTER</div><h2><code>@foto-owl/media-native</code></h2>
+          <p>This is a lightweight React provider/hooks adapter, not a full React Native application or native build setup. Its public exports are <code>MediaNativeProvider</code> plus <code>useMediaClient</code>, <code>useMediaSearch</code>, <code>useMediaCurated</code>, <code>useMediaItem</code>, and event hooks.</p>
+          <pre><code>import { createMediaClient } from '@foto-owl/media-core';
+import {
+  MediaNativeProvider,
+  useMediaSearch,
+} from '@foto-owl/media-native';
+
+const client = createMediaClient({ apiKey: appConfig.pexelsApiKey });
+
+function SearchScreen() {
+  const { results, loading, error, pagination } = useMediaSearch({
+    query: 'waterfall', page: 1, perPage: 20,
+  });
+  // Render using app-owned React Native primitives.
+  return null;
+}
+
+function NativeApp() {
+  return (
+    &lt;MediaNativeProvider client={client}&gt;
+      &lt;SearchScreen /&gt;
+    &lt;/MediaNativeProvider&gt;
+  );
+}</code></pre>
+          <p>Wrap native screens in <code>&lt;MediaNativeProvider client={client}&gt;</code>. The app owns rendering, API-key configuration, and application-specific decisions.</p>
+        </section>
+
+        <section class="doc-section" id="events">
+          <div class="section-kicker">07 · EVENTS</div><h2>View and download events</h2>
+          <p><code>client.events</code> supports <code>on</code>, <code>off</code>, and <code>emit</code> for <code>view</code> and <code>download</code>. Payloads include <code>mediaId</code> and <code>mediaType</code>; <code>url</code>, <code>source</code>, and app-owned <code>metadata</code> are optional. The app emits events when an action occurs; the SDK does not infer views or downloads.</p>
+          <pre><code>const unsubscribe = client.events.on('view', (payload) =&gt; {
+  console.info('Viewed', payload.mediaId);
+});
+
+client.events.emit('view', {
+  mediaId: item.id,
+  mediaType: item.mediaType,
+  source: 'gallery',
+});
+
+unsubscribe(); // Or client.events.off('view', listener)</code></pre>
+          <p>The emitter has a default console listener. React and native wrapper event hooks subscribe and clean up automatically; they do not emit.</p>
+        </section>
+
+        <section class="doc-section" id="errors">
+          <div class="section-kicker">08 · ERRORS</div><h2>Handle SDK failures</h2>
+          <p>Core throws the exported <code>MediaSdkError</code> with a stable <code>code</code> and optional HTTP <code>status</code>. Common codes include <code>MISSING_API_KEY</code>, <code>INVALID_ARGUMENT</code>, <code>NETWORK_ERROR</code>, <code>HTTP_ERROR</code>, and <code>INVALID_RESPONSE</code>. Error messages do not expose the API key or raw response body.</p>
+          <pre><code>import { MediaSdkError } from '@foto-owl/media-core';
+
+try {
+  const page = await client.search('forest');
+} catch (error) {
+  if (error instanceof MediaSdkError) {
+    console.error(error.code, error.status, error.message);
+  }
+}</code></pre>
+          <p>Data hooks expose errors and loading separately. They do not implement automatic retry or network-layer cancellation; the consuming app chooses the retry and display behavior.</p>
+        </section>
+
+        <section class="doc-section" id="development">
+          <div class="section-kicker">09 · DEVELOP</div><h2>Test and build</h2>
+          <pre><code>npm install
+npm run test --workspace @foto-owl/media-core
+npm run test --workspace @foto-owl/media-react
+npm run test --workspace @foto-owl/media-native
+npm run build</code></pre>
+          <p>Tests use mock fetch/client implementations and do not call the live Pexels API. Packages are JavaScript ES modules; media-core uses JSDoc for public structures. See the repository package READMEs for full details.</p>
+        </section>
+
+        <footer class="footer"><span>Foto Owl · SDK documentation</span><a href="../components/">Continue to component docs →</a></footer>
+      </main>
+    </div>
+  </body>
+</html>

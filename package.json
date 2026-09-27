@@ -1,0 +1,15 @@
+{
+  "name": "headless-media-sdk",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "workspaces": ["apps/*", "packages/*"],
+  "scripts": {
+    "dev": "npm run dev --workspace @foto-owl/web",
+    "build": "npm run build --workspaces --if-present"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.6.0",
+    "vite": "^6.3.5"
+  }
+}
